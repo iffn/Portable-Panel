@@ -33,7 +33,12 @@ namespace myro
 		FORCE_OPEN
 	}
 
-	
+	public enum DesktopOpeningBehaviors
+    {
+		Hold,
+		ToggleShortPressOnly,
+		ToggleIncludingLongPress
+    }
 
 	[UdonBehaviourSyncMode(BehaviourSyncMode.None)]
 	[DefaultExecutionOrder(500)]
@@ -44,7 +49,7 @@ namespace myro
 		private Transform _panelTransf;
 
 		//public bool ClosedByDefault = true;
-		public bool TabOnHold = true;
+		//public bool TabOnHold = true;
 		public EGestureMode GestureMode;
 		public EClosingBehaviour CloseBehaviour;
 		public bool GrabbablePanel = true;
@@ -53,10 +58,17 @@ namespace myro
 		public float MaxDistanceBeforeClosingThePanel = 2f;
 		public float PanelScaleOnDesktop = 0.5f;
 
+		[SerializeField] KeyCode desktopOpeningKey = KeyCode.Tab;
+        [SerializeField] DesktopOpeningBehaviors desktopOpeningBehavior = DesktopOpeningBehaviors.ToggleShortPressOnly;
+		[SerializeField] bool pannelStaysInFrontOfDesktopPlayer = false;
+
+		float pressTimestamp;
+		float pressTimeThreshold = 0.5f;
 
 		[Header("Advanced settings, change them only if you really need to")]
 		[SerializeField]
 		private bool _delayInitialisation = false;
+
 
 		private VRCPlayerApi _localPlayer;
 		private EGrabbed _grabbed;
@@ -521,53 +533,55 @@ namespace myro
 			//On Desktop, it is more interesting to use PostLateUpdate, so the panel doesn't lag behind.
 			if (!_localPlayer.IsUserInVR())
 			{
-				if (TabOnHold)
-				{
-					bool tabPressed = Input.GetKey(KeyCode.Tab);
+				bool pannelIsOpen = IsPanelOpen();
 
-					if ((tabPressed && _forceStateOfPanel != EForceState.FORCE_CLOSE)
-						|| _forceStateOfPanel == EForceState.FORCE_OPEN)
-					{
-						if (!IsPanelOpen())
-						{
-							OpenPanel();
-						}
-						PlacePanelInFrontOfPlayer();
+				bool pannelShouldBeOpen = false;
 
-						if (tabPressed)
-						{
-							_forceStateOfPanel = EForceState.NONE;
+				switch (desktopOpeningBehavior)
+                {
+                    case DesktopOpeningBehaviors.Hold:
+						pannelShouldBeOpen = Input.GetKey(desktopOpeningKey);
+						break;
+                    case DesktopOpeningBehaviors.ToggleShortPressOnly:
+						if (Input.GetKeyDown(desktopOpeningKey)) pressTimestamp = Time.time;
+						else if (Input.GetKeyUp(desktopOpeningKey))
+                        {
+							float timeHeld = Time.time - pressTimestamp;
+
+							Debug.Log($"Held for {timeHeld}s");
+
+                            if (timeHeld < pressTimeThreshold)
+                            {
+								pannelShouldBeOpen = !pannelIsOpen;
+							}
 						}
-					}
-					else if (!tabPressed || _forceStateOfPanel == EForceState.FORCE_CLOSE)
-					{
-						if (IsPanelOpen())
+                        break;
+                    case DesktopOpeningBehaviors.ToggleIncludingLongPress:
+						if (Input.GetKeyDown(desktopOpeningKey))
 						{
-							CloseOrRespawnPanel();
+							pannelShouldBeOpen = !pannelIsOpen;
 						}
-						if (!tabPressed)
-						{
-							_forceStateOfPanel = EForceState.NONE;
-						}
-					}
+						break;
+                    default:
+                        break;
+                }
+
+				if((!pannelIsOpen && pannelShouldBeOpen) || _forceStateOfPanel == EForceState.FORCE_OPEN)
+                {
+					//Open
+					OpenPanel();
+					PlacePanelInFrontOfPlayer();
+
+					_forceStateOfPanel = EForceState.NONE;
 				}
-				else
-				{
-					bool tabPressedDown = Input.GetKeyDown(KeyCode.Tab);
-
-					if (!IsPanelOpen() && (tabPressedDown || _forceStateOfPanel == EForceState.FORCE_OPEN))
-					{
-						OpenPanel();
-						PlacePanelInFrontOfPlayer();
-
-						_forceStateOfPanel = EForceState.NONE;
-					}
-					else if (IsPanelOpen() && (tabPressedDown || _forceStateOfPanel == EForceState.FORCE_CLOSE || PanelTooFarAway()))
-					{
-						CloseOrRespawnPanel();
-						_forceStateOfPanel = EForceState.NONE;
-					}
+				else if((pannelIsOpen && !pannelShouldBeOpen) || _forceStateOfPanel == EForceState.FORCE_CLOSE || PanelTooFarAway())
+                {
+					//Close
+					CloseOrRespawnPanel();
+					_forceStateOfPanel = EForceState.NONE;
 				}
+
+				if(pannelIsOpen && pannelStaysInFrontOfDesktopPlayer) PlacePanelInFrontOfPlayer();
 			}
 		}
 
