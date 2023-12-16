@@ -533,14 +533,14 @@ namespace myro
 			//On Desktop, it is more interesting to use PostLateUpdate, so the panel doesn't lag behind.
 			if (!_localPlayer.IsUserInVR())
 			{
-				bool pannelIsOpen = IsPanelOpen();
+				bool panelIsOpen = IsPanelOpen();
 
-				bool pannelShouldBeOpen = false;
+				bool panelShouldBeOpen = panelIsOpen;
 
 				switch (desktopOpeningBehavior)
                 {
                     case DesktopOpeningBehaviors.Hold:
-						pannelShouldBeOpen = Input.GetKey(desktopOpeningKey);
+						panelShouldBeOpen = Input.GetKey(desktopOpeningKey);
 						break;
                     case DesktopOpeningBehaviors.ToggleShortPressOnly:
 						if (Input.GetKeyDown(desktopOpeningKey)) pressTimestamp = Time.time;
@@ -548,40 +548,42 @@ namespace myro
                         {
 							float timeHeld = Time.time - pressTimestamp;
 
-							Debug.Log($"Held for {timeHeld}s");
-
                             if (timeHeld < pressTimeThreshold)
                             {
-								pannelShouldBeOpen = !pannelIsOpen;
+								panelShouldBeOpen = !panelIsOpen;
+								pressTimestamp = Mathf.Infinity;
 							}
 						}
                         break;
                     case DesktopOpeningBehaviors.ToggleIncludingLongPress:
 						if (Input.GetKeyDown(desktopOpeningKey))
 						{
-							pannelShouldBeOpen = !pannelIsOpen;
+							panelShouldBeOpen = !panelIsOpen;
 						}
 						break;
                     default:
                         break;
                 }
 
-				if((!pannelIsOpen && pannelShouldBeOpen) || _forceStateOfPanel == EForceState.FORCE_OPEN)
+				if((!panelIsOpen && panelShouldBeOpen) || _forceStateOfPanel == EForceState.FORCE_OPEN)
                 {
 					//Open
 					OpenPanel();
 					PlacePanelInFrontOfPlayer();
 
 					_forceStateOfPanel = EForceState.NONE;
+
+					Debug.Log("Open");
 				}
-				else if((pannelIsOpen && !pannelShouldBeOpen) || _forceStateOfPanel == EForceState.FORCE_CLOSE || PanelTooFarAway())
+				else if((panelIsOpen && !panelShouldBeOpen) || _forceStateOfPanel == EForceState.FORCE_CLOSE || PanelTooFarAway())
                 {
 					//Close
+					Debug.Log($"Close with {panelIsOpen}, {panelShouldBeOpen}, {_forceStateOfPanel}, {PanelTooFarAway()}");
 					CloseOrRespawnPanel();
 					_forceStateOfPanel = EForceState.NONE;
 				}
 
-				if(pannelIsOpen && pannelStaysInFrontOfDesktopPlayer) PlacePanelInFrontOfPlayer();
+				if(panelIsOpen && pannelStaysInFrontOfDesktopPlayer) PlacePanelInFrontOfPlayer();
 			}
 		}
 
