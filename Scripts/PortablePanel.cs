@@ -52,6 +52,7 @@ namespace myro
 		//public bool TabOnHold = true;
 		public EGestureMode GestureMode;
 		public EClosingBehaviour CloseBehaviour;
+		public bool closeOnStart = true;
 		public bool GrabbablePanel = true;
 		public float MaxScale = 9999.0f;
 		public float MinScale = 0.1f;
@@ -121,18 +122,18 @@ namespace myro
 		private void Start()
 		{
 			if (!_delayInitialisation)
-				Initialisation();
+				Initialization();
 		}
 
 		public override void OnPlayerJoined(VRCPlayerApi player)
 		{
 			if (_delayInitialisation && player.isLocal)
-				Initialisation();
+				Initialization();
 		}
 
-		public void Initialisation()
+		public void Initialization()
 		{
-			CloseOrRespawnPanel();
+			if(closeOnStart) CloseOrRespawnPanel();
 			OnStart();
 			_init = true;
 		}
